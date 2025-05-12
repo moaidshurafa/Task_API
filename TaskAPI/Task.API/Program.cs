@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Task.API.Data;
 using Task.API.Mappings;
+using Task.API.Repositories;
+using Task.API.Repositories.IRepository;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +10,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<TaskApiDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<ITagRepository, TagRepository>();
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
 builder.Services.AddControllers();
 builder.Services.AddAutoMapper(typeof(AutoMappers));

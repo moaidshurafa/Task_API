@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Task.API.Data;
 using Task.API.Models;
 using Task.API.Models.DTO;
+using Task.API.Repositories.IRepository;
 
 namespace Task.API.Controllers
 {
@@ -14,22 +15,24 @@ namespace Task.API.Controllers
     {
         private readonly TaskApiDbContext dbContext;
         private readonly IMapper mapper;
+        private readonly ICategoryRepository categoryRepository;
 
-        public CategoryController(TaskApiDbContext dbContext, IMapper mapper)
+        public CategoryController(TaskApiDbContext dbContext, IMapper mapper, ICategoryRepository categoryRepository)
         {
             this.dbContext = dbContext;
             this.mapper = mapper;
+            this.categoryRepository = categoryRepository;
         }
         [HttpGet]
         public async Task<IActionResult> Get()
         {
-            var categories = await dbContext.Categories.ToListAsync();
+            var categories = await categoryRepository.GetAllAsync();
             return Ok(mapper.Map<List<CategoryDTO>>(categories));
         }
         [HttpGet("{id}")]
         public async Task<IActionResult> Get([FromRoute] int id)
         {
-            var category = await dbContext.Categories.FirstOrDefaultAsync(x => x.CategoryId == id);
+            var category = await categoryRepository.GetAsync(x => x.CategoryId == id);
             if (category == null)
             {
                 return NotFound();
@@ -44,8 +47,7 @@ namespace Task.API.Controllers
                 return BadRequest();
             }
             var category = mapper.Map<Category>(categoryRequestDTO);
-            dbContext.Categories.Add(category);
-            await dbContext.SaveChangesAsync();
+            await categoryRepository.AddAsync(category);
             return Ok(mapper.Map<CategoryDTO>(category));
         }
         [HttpPut("{id}")]
@@ -55,25 +57,27 @@ namespace Task.API.Controllers
             {
                 return BadRequest();
             }
-            var category = await dbContext.Categories.FirstOrDefaultAsync(x => x.CategoryId == id);
+            var category = await categoryRepository.GetAsync(x => x.CategoryId == id);
             if (category == null)
             {
                 return NotFound();
             }
             mapper.Map(updateCategoryRequestDTO, category);
-            await dbContext.SaveChangesAsync();
+
+            await categoryRepository.UpdateAsync(category);
             return Ok(mapper.Map<CategoryDTO>(category));
         }
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete([FromRoute] int id)
         {
-            var category = await dbContext.Categories.FirstOrDefaultAsync(x => x.CategoryId == id);
+            var category = await categoryRepository.GetAsync(x => x.CategoryId == id);
             if (category == null)
             {
                 return NotFound();
             }
             dbContext.Categories.Remove(category);
-            await dbContext.SaveChangesAsync();
+
+            await categoryRepository.RemoveAsync(category);
             return Ok(mapper.Map<CategoryDTO>(category));
         }
 

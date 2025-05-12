@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Task.API.Data;
 using Task.API.Models;
 using Task.API.Models.DTO;
+using Task.API.Repositories.IRepository;
 
 namespace Task.API.Controllers
 {
@@ -14,22 +15,24 @@ namespace Task.API.Controllers
     {
         private readonly TaskApiDbContext dbContext;
         private readonly IMapper mapper;
+        private readonly ITagRepository tagRepository;
 
-        public TagController(TaskApiDbContext dbContext, IMapper mapper)
+        public TagController(TaskApiDbContext dbContext, IMapper mapper, ITagRepository tagRepository)
         {
             this.dbContext = dbContext;
             this.mapper = mapper;
+            this.tagRepository = tagRepository;
         }
         [HttpGet]
         public async Task<IActionResult> Get()
         {
-            var tags = await dbContext.Tags.ToListAsync();
+            var tags = await tagRepository.GetAllAsync();
             return Ok(mapper.Map<List<TagDTO>>(tags));
         }
         [HttpGet("{id}")]
         public async Task<IActionResult> Get([FromRoute] int id)
         {
-            var tag = await dbContext.Tags.FirstOrDefaultAsync(x => x.TagId == id);
+            var tag = await tagRepository.GetAsync(x => x.TagId == id);
             if (tag == null)
             {
                 return NotFound();
@@ -44,8 +47,7 @@ namespace Task.API.Controllers
                 return BadRequest();
             }
             var tag = mapper.Map<Tag>(tagRequestDTO);
-            dbContext.Tags.Add(tag);
-            await dbContext.SaveChangesAsync();
+            await tagRepository.AddAsync(tag);
             return Ok(mapper.Map<TagDTO>(tag));
         }
         [HttpPut("{id}")]
@@ -55,25 +57,24 @@ namespace Task.API.Controllers
             {
                 return BadRequest();
             }
-            var tag = await dbContext.Tags.FirstOrDefaultAsync(x => x.TagId == id);
+            var tag = await tagRepository.GetAsync(x => x.TagId == id);
             if (tag == null)
             {
                 return NotFound();
             }
             mapper.Map(updateTagRequestDTO, tag);
-            await dbContext.SaveChangesAsync();
+            await tagRepository.UpdateAsync(tag);
             return Ok(mapper.Map<TagDTO>(tag));
         }
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete([FromRoute] int id)
         {
-            var tag = await dbContext.Tags.FirstOrDefaultAsync(x => x.TagId == id);
+            var tag = await tagRepository.GetAsync(x => x.TagId == id);
             if (tag == null)
             {
                 return NotFound();
             }
-            dbContext.Tags.Remove(tag);
-            await dbContext.SaveChangesAsync();
+            await tagRepository.RemoveAsync(tag);
             return Ok(mapper.Map<TagDTO>(tag));
         }
     }

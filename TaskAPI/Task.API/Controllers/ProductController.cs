@@ -1,9 +1,11 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 using Task.API.Data;
 using Task.API.Models;
 using Task.API.Models.DTO;
+using Task.API.Repositories.IRepository;
 
 namespace Task.API.Controllers
 {
@@ -13,50 +15,46 @@ namespace Task.API.Controllers
     {
         private readonly TaskApiDbContext dbContext;
         private readonly IMapper mapper;
+        private readonly IProductRepository productRepository;
 
-        public ProductsController(TaskApiDbContext dbContext, IMapper mapper)
+        public ProductsController(TaskApiDbContext dbContext, IMapper mapper, IProductRepository productRepository)
         {
             this.dbContext = dbContext;
             this.mapper = mapper;
+            this.productRepository = productRepository;
         }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ProductDTO>>> GetAll([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, [FromQuery] string? category = null,
             [FromQuery] string? tag = null)
         {
-            var query = dbContext.Products
-                .Include(p => p.Category)
-                .Include(p => p.ProductTags).ThenInclude(pt => pt.Tag)
-                .AsQueryable();
-
+            Expression<Func<Product, bool>>? filter = null;
             if (!string.IsNullOrWhiteSpace(category))
             {
-                query = query.Where(p => p.Category.CategoryName.Contains(category));
-
+                filter = p => p.Category.CategoryName.Contains(category);
             }
-
             if (!string.IsNullOrWhiteSpace(tag))
             {
-                query = query.Where(p => p.ProductTags.Any(pt => pt.Tag.TagName.Contains(tag)));
-
             }
 
-            var items = await query
+            var includeProperties = "Category,ProductTags.Tag";
+            var products = await productRepository.GetAllAsync(filter, includeProperties);
+
+            var paged = products
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .ToListAsync();
+                .ToList();
 
-            return Ok(mapper.Map<List<ProductDTO>>(items));
+            return Ok(mapper.Map<List<ProductDTO>>(paged));
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<ProductDTO>> GetById(int id)
         {
-            var product = await dbContext.Products
-                .Include(p => p.Category)
-                .Include(p => p.ProductTags)
-                    .ThenInclude(pt => pt.Tag)
-                .FirstOrDefaultAsync(p => p.ProductId == id);
+            var product = await productRepository.GetAsync(
+                p => p.ProductId == id,
+                includeProperties: "Category,ProductTags.Tag"
+            );
 
             if (product == null)
                 return NotFound();
@@ -80,50 +78,50 @@ namespace Task.API.Controllers
                         TagId = tagId
                     });
                 }
-                await dbContext.SaveChangesAsync();
+                await productRepository.SaveAsync();
             }
-            var createdProduct = await dbContext.Products
-                .Include(p => p.Category)
-                .Include(p => p.ProductTags)
-                    .ThenInclude(pt => pt.Tag)
-                .FirstOrDefaultAsync(p => p.ProductId == product.ProductId);
+            var createdProduct = await productRepository.GetAsync(
+                p => p.ProductId == product.ProductId,
+                includeProperties: "Category,ProductTags.Tag"
+                );
 
             return CreatedAtAction(nameof(GetById), new { id = createdProduct.ProductId }, mapper.Map<ProductDTO>(createdProduct));
         }
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateProductRequestDTO dto)
         {
-            var product = await dbContext.Products
-                .Include(p => p.ProductTags)
-                .FirstOrDefaultAsync(p => p.ProductId == id);
+            var product = await productRepository.GetAsync(
+                p => p.ProductId == id,
+                includeProperties: "ProductTags"
+            );
 
             if (product == null)
                 return NotFound();
+
             mapper.Map(dto, product);
 
             var existingTagIds = product.ProductTags.Select(pt => pt.TagId).ToList();
             var toRemove = product.ProductTags.Where(pt => !dto.TagIds.Contains(pt.TagId)).ToList();
             var toAdd = dto.TagIds.Except(existingTagIds).ToList();
 
-            dbContext.ProductTags.RemoveRange(toRemove);
-            foreach (var tagId in toAdd)
-            {
-                product.ProductTags.Add(new ProductTag { ProductId = id, TagId = tagId });
-            }
+            foreach (var pt in toRemove)
+                product.ProductTags.Remove(pt);
 
-            await dbContext.SaveChangesAsync();
-            return NoContent();
+            foreach (var tagId in toAdd)
+                product.ProductTags.Add(new ProductTag { ProductId = id, TagId = tagId });
+
+            await productRepository.SaveAsync();
+            return Ok();
         }
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var product = await dbContext.Products.FindAsync(id);
+            var product = await productRepository.GetAsync(u => u.ProductId == id);
             if (product == null)
                 return NotFound();
 
-            dbContext.Products.Remove(product);
-            await dbContext.SaveChangesAsync();
-            return NoContent();
+            await productRepository.RemoveAsync(product);
+            return Ok(mapper.Map<ProductDTO>(product));
         }
     }
 }
