@@ -11,12 +11,7 @@ namespace Task.API.Repositories
         {
             this.dbContext = dbContext;
         }
-        public async Task<Tag> UpdateAsync(Tag tag)
-        {
-            dbContext.Tags.Update(tag);
-            await dbContext.SaveChangesAsync();
-            return tag;
-        }
+        
     }
     
 }

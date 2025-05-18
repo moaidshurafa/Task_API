@@ -13,13 +13,11 @@ namespace Task.API.Controllers
     [ApiController]
     public class TagController : ControllerBase
     {
-        private readonly TaskApiDbContext dbContext;
         private readonly IMapper mapper;
         private readonly ITagRepository tagRepository;
 
-        public TagController(TaskApiDbContext dbContext, IMapper mapper, ITagRepository tagRepository)
+        public TagController(IMapper mapper, ITagRepository tagRepository)
         {
-            this.dbContext = dbContext;
             this.mapper = mapper;
             this.tagRepository = tagRepository;
         }

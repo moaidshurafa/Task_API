@@ -13,13 +13,11 @@ namespace Task.API.Controllers
     [Route("api/[controller]")]
     public class ProductsController : ControllerBase
     {
-        private readonly TaskApiDbContext dbContext;
         private readonly IMapper mapper;
         private readonly IProductRepository productRepository;
 
         public ProductsController(TaskApiDbContext dbContext, IMapper mapper, IProductRepository productRepository)
         {
-            this.dbContext = dbContext;
             this.mapper = mapper;
             this.productRepository = productRepository;
         }
@@ -64,22 +62,27 @@ namespace Task.API.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] AddProductRequestDTO request)
         {
+            if (request == null)
+                return BadRequest();
+
             var product = mapper.Map<Product>(request);
-            dbContext.Products.Add(product);
-            await dbContext.SaveChangesAsync();
+
+            await productRepository.AddAsync(product);
 
             if (request.TagIds != null && request.TagIds.Any())
             {
-                foreach (var tagId in request.TagIds.Distinct())
-                {
-                    dbContext.ProductTags.Add(new ProductTag
+                product.ProductTags = request.TagIds
+                    .Distinct()
+                    .Select(tagId => new ProductTag
                     {
                         ProductId = product.ProductId,
                         TagId = tagId
-                    });
-                }
-                await productRepository.SaveAsync();
+                    }).ToList();
+
+                await productRepository.UpdateAsync(product);
             }
+
+            await productRepository.SaveAsync();
             var createdProduct = await productRepository.GetAsync(
                 p => p.ProductId == product.ProductId,
                 includeProperties: "Category,ProductTags.Tag"

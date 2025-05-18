@@ -11,12 +11,7 @@ namespace Task.API.Repositories
         {
             this.dbContext = dbContext;
         }
-        public async Task<Category> UpdateAsync(Category category)
-        {
-            dbContext.Categories.Update(category);
-            await dbContext.SaveChangesAsync();
-            return category;
-        }
+        
     }
     
 }

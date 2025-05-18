@@ -13,13 +13,11 @@ namespace Task.API.Controllers
     [ApiController]
     public class CategoryController : ControllerBase
     {
-        private readonly TaskApiDbContext dbContext;
         private readonly IMapper mapper;
         private readonly ICategoryRepository categoryRepository;
 
-        public CategoryController(TaskApiDbContext dbContext, IMapper mapper, ICategoryRepository categoryRepository)
+        public CategoryController(IMapper mapper, ICategoryRepository categoryRepository)
         {
-            this.dbContext = dbContext;
             this.mapper = mapper;
             this.categoryRepository = categoryRepository;
         }
@@ -75,7 +73,6 @@ namespace Task.API.Controllers
             {
                 return NotFound();
             }
-            dbContext.Categories.Remove(category);
 
             await categoryRepository.RemoveAsync(category);
             return Ok(mapper.Map<CategoryDTO>(category));

@@ -71,5 +71,11 @@ namespace Task.API.Repositories
         {
             await dbContext.SaveChangesAsync();
         }
+
+        public async StdTask UpdateAsync(T entity)
+        {
+            dbSet.Update(entity);
+            await SaveAsync();
+        }
     }
 }
